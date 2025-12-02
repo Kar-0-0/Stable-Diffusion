@@ -1,0 +1,94 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# Virtual environments
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Python env files
+.env
+.env.*
+.envrc
+
+# IDEs / editors
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs and databases
+*.log
+logs/
+*.sqlite3
+*.db
+*.sql
+tmp/
+temp/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Type checkers
+.mypy_cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.override.yml
+*.dockerignore
+
+# Machine learning artifacts
+# Model checkpoints, weights and large artifacts
+checkpoints/
+models/
+weights/
+outputs/
+results/
+samples/
+runs/                # common for TensorBoard
+mlruns/              # MLflow
+
+# Common model file extensions
+*.ckpt
+*.pt
+*.pth
+*.safetensors
+*.bin
+*.msgpack
+
+# Cache directories (may be local or HF cache)
+.cache/
+huggingface/
+transformers_cache/
+torch_cache/
+
+# Build/test artifacts
+.coverage.*
+coverage.xml
+htmlcov/
+
+# Misc
+*.seed
+*.tmp
+*.bak
+*.swp
