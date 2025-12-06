@@ -53,7 +53,7 @@ default_config = SDConfig(
     in_channels=3,
     out_channels=3,
     latent_channels=4,
-    block_out_channels=[64, 128, 256],
+    block_out_channels=[64, 128, 256, 256],
     layers_per_block=2,
     norm_num_groups=32,
     timesteps=1000,
@@ -351,7 +351,6 @@ class MidBlock(nn.Module):
 
         self.transformer = TransformerBlock(channels, time_dim)
         
-        self.clip = ClipTextEncoder()
         self.cross_attention = CrossAttention(channels)
 
         self.resnet2 = TimeResNet2D(
@@ -407,12 +406,15 @@ class UpBlock2D(nn.Module):
                 )
             )
             in_channels = out_channels
+
+        self.cross_attention = CrossAttention(out_channels)
         
-    def forward(self, x, skip, t_emb):
+    def forward(self, x, skip, t_emb, text_emb):
         x = torch.cat([x, skip], dim=1)
 
         for resnet in self.resnets:
             x = resnet(x, t_emb)
+            x = x + self.cross_attention(x, text_emb)
 
         if self.add_upsample:
             x = self.upsample(x)
@@ -473,11 +475,11 @@ class UnetDecoder(nn.Module):
 
         self.up_blocks = nn.ModuleList([self.up_block_low, self.up_block_mid1, self.up_block_mid2, self.up_block_high])
     
-    def forward(self, x, skips, t_emb):
+    def forward(self, x, skips, t_emb, text_emb):
         reversed_skips = skips[::-1]
 
         for skip, up_block in zip(reversed_skips, self.up_blocks):
-            x = up_block(x, skip, t_emb)
+            x = up_block(x, skip, t_emb, text_emb)
         
         return x
 
@@ -548,7 +550,7 @@ class UNetLatent(nn.Module):
     def forward(self, x, t_emb, text_emb):
         x, skips = self.encoder(x, t_emb)
         x = self.mid_block(x, t_emb, text_emb)
-        x = self.decoder(x, skips, t_emb)
+        x = self.decoder(x, skips, t_emb, text_emb)
         x = self.conv_out(x)
 
         return x
