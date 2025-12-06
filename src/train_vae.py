@@ -72,17 +72,17 @@ if __name__ == "__main__":
         in_channels=3,
         out_channels=3,
         latent_channels=4,
-        block_out_channels=[64, 128],
+        block_out_channels=[64, 128, 256, 256],
         layers_per_block=2,
         norm_num_groups=32,
         timesteps=1000,
         base_channels=64,
-        batch_size=16,
+        batch_size=32,
         num_epochs=15,
         lr=1e-4,
         num_workers=4,
         scaling_factor=0.18215,
-        beta=0.000001
+        beta=0.00001
     )
     cfg = default_config
 
@@ -108,7 +108,7 @@ if __name__ == "__main__":
     )
 
     # Only using first 1k images because training the full dataset is going to take 49 HOURS!!!
-    indices = list(range(5000))
+    indices = list(range(40000))
     train_dataset = Subset(train_dataset_full, indices)
 
     train_loader = DataLoader(
@@ -183,9 +183,17 @@ if __name__ == "__main__":
     kl_losses = []
     losses = []
 
+    optimizer = torch.optim.Adam(vae.parameters(), lr=cfg.lr)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=cfg.num_epochs)
+
     for epoch in range(cfg.num_epochs):
         print(f"Epoch: {epoch}")
         visualize_recon(vae)
+        with torch.no_grad():
+            images, _ = next(iter(train_loader))
+            images = images.to(device)
+            mu, _, _ = vae(images)
+            print(f"Latent Mean: {mu.mean().item():.3f}, Std: {mu.std().item():.3f}")
         vae.train()
         for i, (image, _) in enumerate(train_loader):
             if i % 10 == 0 or i+1 == len(train_loader):
@@ -205,12 +213,14 @@ if __name__ == "__main__":
 
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(vae.parameters(), 1.0)
             optimizer.step()
+            scheduler.step()
 
         print(f"MSE Loss: {sum(mse_losses)/len(mse_losses)}\nKL Loss: {sum(kl_losses)/len(kl_losses)}\nTotal Loss: {sum(losses)/len(losses)}")
 
         mse_losses = []
         kl_losses = []
         losses = []
-
-    torch.save(vae.state_dict(), "vae_ckpt.pth")
+        if (epoch + 1) % 5 == 0:
+            torch.save(vae.state_dict(), f"vae_ckpt_epoch{epoch+1}.pth")
