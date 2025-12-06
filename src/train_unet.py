@@ -195,6 +195,7 @@ if __name__ == "__main__":
     text_ember.eval()
     for param in text_ember.parameters():
         param.requires_grad = False
+
     def sample_and_save_image(unet, t_ember, vae, cfg, device, epoch, captions, num_samples=4):
         unet.eval()
         t_ember.eval()
@@ -203,7 +204,7 @@ if __name__ == "__main__":
             captions = [captions] * num_samples
             text_emb = text_ember(captions)
 
-            latent_shape = (num_samples, cfg.latent_channels, cfg.image_size // 8, cfg.image_size // 8)  # 128/8=16
+            latent_shape = (num_samples, cfg.latent_channels, 64, 64)  # 128/8=16
             x_t = torch.randn(latent_shape, device=device)  # start from noise
 
             beta, alpha, alpha_bar = baab()
@@ -228,7 +229,7 @@ if __name__ == "__main__":
                 x_t = (1 / torch.sqrt(alpha_t)) * (x_t - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * eps_pred) + torch.sqrt(beta_t) * noise
 
             # Decode latent to image
-            x_sampled = vae.decoder(x_t).clamp(-1, 1)  # shape (B, 3, H, W)
+            x_sampled = vae.decoder(x_t / cfg.scaling_factor).clamp(-1, 1)  # shape (B, 3, H, W)
             x_sampled = (x_sampled + 1) / 2  # [-1,1] to [0,1]
 
         # Save images to disk
@@ -252,7 +253,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 mu, log_var, _ = vae(x)          # x: images
                 sigma = torch.exp(0.5 * log_var)
-                z = (mu + sigma * torch.randn_like(sigma))
+                z = (mu + sigma * torch.randn_like(sigma)) * cfg.scaling_factor
 
             t = torch.randint(0, cfg.timesteps, (x.size(0),), device=device)
             if i % 100 == 0 or i + 1 == len(train_loader):
@@ -284,7 +285,11 @@ if __name__ == "__main__":
         ix = torch.randint(0, len(train_loader)-1, (1,)).item()
         _, labels_batch = next(iter(DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, collate_fn=coco_collate_fn)))
         caption = labels_batch[0][0] 
-        sample_and_save_image(ema_unet, t_ember, vae, cfg, device, epoch, "a dog on the grass", 4)
+        if epoch < 15:
+            sample_and_save_image(unet, t_ember, vae, cfg, device, epoch, "a dog on the grass", 4)
+        else:
+            sample_and_save_image(ema_unet, t_ember, vae, cfg, device, epoch, "a dog on the grass", 4)
+
 
     # Save for Sampling
     cfg_dict = asdict(cfg)
