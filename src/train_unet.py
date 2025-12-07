@@ -86,11 +86,11 @@ default_config = SDConfig(
     norm_num_groups=32,
     timesteps=200,
     base_channels=64,
-    batch_size=16,
-    num_epochs=20,
+    batch_size=32,
+    num_epochs=15,
     lr=1e-4,
     num_workers=4,
-    scaling_factor=0.18215,
+    scaling_factor=1,
     beta=0.000001,
     time_dim=256
 )
@@ -130,7 +130,7 @@ if __name__ == "__main__":
     )
 
     #Only using first 1k images because training the full dataset is going to take 49 HOURS!!!
-    indices = list(range(20000))
+    indices = list(range(40000))
     train_dataset = Subset(train_dataset_full, indices)
 
     train_loader = DataLoader(
@@ -147,7 +147,7 @@ if __name__ == "__main__":
         in_channels=cfg.in_channels,
         out_channels=cfg.out_channels,
         latent_channels=cfg.latent_channels,
-        block_out_channels=[64, 128],
+        block_out_channels=[64, 128, 256, 256],
         down_block_types=None,          # or your list later
         up_block_types=None,
         layers_per_block=cfg.layers_per_block,
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     
 
     device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-    vae.load_state_dict(torch.load("vae_ckpt.pth", map_location=device))
+    vae.load_state_dict(torch.load("vae_ckpt_epoch15.pth", map_location=device))
     vae.to(device)
     vae.eval()
 
@@ -204,7 +204,7 @@ if __name__ == "__main__":
             captions = [captions] * num_samples
             text_emb = text_ember(captions)
 
-            latent_shape = (num_samples, cfg.latent_channels, 64, 64)  # 128/8=16
+            latent_shape = (num_samples, cfg.latent_channels, 16, 16)  # 128/8=16
             x_t = torch.randn(latent_shape, device=device)  # start from noise
 
             beta, alpha, alpha_bar = baab()
@@ -229,14 +229,14 @@ if __name__ == "__main__":
                 x_t = (1 / torch.sqrt(alpha_t)) * (x_t - ((1 - alpha_t) / torch.sqrt(1 - alpha_bar_t)) * eps_pred) + torch.sqrt(beta_t) * noise
 
             # Decode latent to image
-            x_sampled = vae.decoder(x_t / cfg.scaling_factor).clamp(-1, 1)  # shape (B, 3, H, W)
+            x_sampled = vae.decoder(x_t).clamp(-1, 1)  # shape (B, 3, H, W)
             x_sampled = (x_sampled + 1) / 2  # [-1,1] to [0,1]
 
         # Save images to disk
         grid = torchvision.utils.make_grid(x_sampled.cpu(), nrow=num_samples)
         plt.figure(figsize=(12, 12))
         plt.axis('off')
-        plt.title(f'Sampled images at epoch {epoch}\n Prompt: {captions}')
+        plt.title(f'Sampled images at epoch {epoch}\n Prompt: {captions[0]}')
         plt.imshow(grid.permute(1, 2, 0))
         plt.savefig(f'samples_epoch{epoch}.png')
         plt.close()
@@ -253,7 +253,7 @@ if __name__ == "__main__":
             with torch.no_grad():
                 mu, log_var, _ = vae(x)          # x: images
                 sigma = torch.exp(0.5 * log_var)
-                z = (mu + sigma * torch.randn_like(sigma)) * cfg.scaling_factor
+                z = (mu + sigma * torch.randn_like(sigma)) 
 
             t = torch.randint(0, cfg.timesteps, (x.size(0),), device=device)
             if i % 100 == 0 or i + 1 == len(train_loader):
@@ -285,7 +285,7 @@ if __name__ == "__main__":
         ix = torch.randint(0, len(train_loader)-1, (1,)).item()
         _, labels_batch = next(iter(DataLoader(train_dataset, batch_size=cfg.batch_size, shuffle=True, collate_fn=coco_collate_fn)))
         caption = labels_batch[0][0] 
-        if epoch < 15:
+        if epoch < 10:
             sample_and_save_image(unet, t_ember, vae, cfg, device, epoch, "a dog on the grass", 4)
         else:
             sample_and_save_image(ema_unet, t_ember, vae, cfg, device, epoch, "a dog on the grass", 4)
