@@ -157,11 +157,11 @@ ELBO = E_{q(z|x)}[log p(x|z)] − β · KL(q(z|x) || p(z))
 
 ## Project Structure
 
-├── vae.py # VAE encoder/decoder implementation
-├── train_vae.py # VAE training script
-├── unet.py # U-Net architecture with time & text conditioning
-├── train_unet.py # Diffusion model training script
-├── sample.py # Example inference / sampling script (optional)
+├── vae.py          # VAE encoder/decoder implementation
+├── train_vae.py    # VAE training script
+├── unet.py         # U-Net architecture with time & text conditioning
+├── train_unet.py   # Diffusion model training script
+├── sample.py       # Example inference / sampling script (optional)
 └── README.md
 
 
